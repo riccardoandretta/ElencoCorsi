@@ -9,10 +9,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import it.polito.tdp.corsi.model.Corso;
+import it.polito.tdp.corsi.model.Stats;
 
 public class CorsoDAO {
 
-	String jdbcURL = "jdbc:mysql://localhost/voti?user=root";
+	private final String jdbcURL = "jdbc:mysql://localhost/iscritticorsi?user=root";
 
 	/**
 	 * Ritorna tutti gli elementi della tabella CORSO
@@ -27,16 +28,14 @@ public class CorsoDAO {
 
 		try {
 
-			Connection conn = DriverManager.getConnection(jdbcURL);
+			Connection conn = ConnectDB.getConnection();
 
 			PreparedStatement st = conn.prepareStatement(sql);
 
 			ResultSet res = st.executeQuery();
 
 			while (res.next()) {
-				Corso c = new Corso(res.getString("codins"),
-						res.getInt("crediti"),
-						res.getString("nome"),
+				Corso c = new Corso(res.getString("codins"), res.getInt("crediti"), res.getString("nome"),
 						res.getInt("pd"));
 
 				result.add(c);
@@ -46,7 +45,7 @@ public class CorsoDAO {
 			conn.close();
 
 		} catch (SQLException e) {
-			return null;
+			throw new RuntimeException(e);
 		}
 
 		return result;
@@ -59,8 +58,61 @@ public class CorsoDAO {
 	 * @return
 	 */
 	public List<Corso> listByPd(int pd) {
-		// TODO Auto-generated method stub
-		return null;
+
+		String sql = "SELECT codins, crediti, nome, pd " + "FROM corso WHERE pd = ?";
+
+		List<Corso> result = new ArrayList<>();
+
+		try {
+
+			Connection conn = ConnectDB.getConnection();
+
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, pd);
+
+			ResultSet res = st.executeQuery();
+
+			while (res.next()) {
+				Corso c = new Corso(res.getString("codins"), res.getInt("crediti"), res.getString("nome"),
+						res.getInt("pd"));
+
+				result.add(c);
+
+			}
+			conn.close();
+
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+
+		return result;
+	}
+
+	// Calcola alcune statistiche sugli iscritti per il corso codins
+	public Stats getStatsByCodins(String codins) {
+
+		String sql = "SELECT s.cds, COUNT(DISTINCT(s.matricola)) AS tot FROM studente AS s, iscrizione AS i "
+				+ "WHERE s.matricola = i.matricola AND i.codins = ? AND s.cds <> \"\" GROUP BY s.cds";  // <> \"\" vuol dire diverso da stringa vuota
+		
+		Stats stats = new Stats();
+
+		try {
+			Connection conn = ConnectDB.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setString(1, codins);
+			ResultSet res = st.executeQuery();
+
+			while (res.next()) {
+				stats.getCdsMap().put(res.getString("cds"), res.getInt("tot"));
+			}
+
+			conn.close();
+
+		} catch (SQLException e) {
+			throw new RuntimeException(e);
+		}
+
+		return stats;
 	}
 
 }
